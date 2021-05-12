@@ -48,19 +48,20 @@ namespace PolarimeterApp
             _serialPort.Write("you rock\n");
         }
 
-        char old_char = 'm';
+        //char old_char = 'm';
+        int voltage; //voltage from arduino for MODE_SCAN
 
         
 
         //Служебное имя платы, с которой будет работать программа.
         const string BOARD_NAME = "LAI24USB";
         //Внутренний объем блока данных.(внутренний буфер) Влияет на количество генерируемых прерываний в единицу времени.
-        const uint IBSIZE = 32;
+        const uint IBSIZE = 8;
         //Фактически, от интенсивности генерируемых прерываний зависит производительность сбора.
         //Чем меньше прерываний, тем с большей вероятностью данные будут собраны без разрывов на высоких частотах.
 
         //Частота дискретизации (на канал). 
-        const double SAMPLE_FREQ = 6.25;
+        const double SAMPLE_FREQ = 100;
         ////Количество внутренних буферов в конструируемом буфере данных.
         //const uint IBUFCNT = 10;
 
@@ -137,7 +138,7 @@ namespace PolarimeterApp
             {
                 //SerialWriteBuffer[0] = 'm';
                 StartExperiment = DateTime.Now;
-                AutoRescale = false;
+                AutoRescale = true;
                 FileName = String.Format("scan{0,4:0000}_{1,2:00}_{2,2:00}-{3,2:00}_{4,2:00}_{5,2:00}.out",
                                                                                 StartExperiment.Year,
                                                                                 StartExperiment.Month,
@@ -288,6 +289,28 @@ namespace PolarimeterApp
             }
             toolStripStatusLabel1.Text += "Successfully started data collection";
         }
+
+        private int constrain(int value, int min_value, int max_value)
+        {
+            if (value < min_value) return min_value;
+            if (value > max_value) return max_value;
+            return value;
+        }
+        private void voltageCorrection(double dc_part_input, double dc_part_optimum, double ac_part_input, double ac_part_optimum)
+        {
+            double prop_coeff_dc = 1.0;
+            //double integral_coeff_dc = 1.0;
+            double prop_coeff_ac = 1.0;
+            //double integral_coeff_ac = 1.0;
+
+            double prop_dc = (dc_part_optimum - dc_part_input)*prop_coeff_dc;
+            double prop_ac = (ac_part_optimum - ac_part_input)*prop_coeff_ac;
+            //double integral_dc = 0;
+            //double integral_ac = 0;
+
+            
+        }
+
         private void button1_Click(object sender, EventArgs e)
         {
             if (State == 0)
@@ -587,7 +610,7 @@ namespace PolarimeterApp
                 if (words[0] == "s")
                 {
                     ChangeOperationMode(SCAN_CELL);
-                    int voltage = Int32.Parse(words[1]);
+                    voltage = Int32.Parse(words[1]);
 
                     //value6 = Int32.Parse(words[1]);
                     //value3 = Int32.Parse(words[2]);
@@ -619,24 +642,24 @@ namespace PolarimeterApp
                     label16.Text = "-";
 
                     OutputFile = new StreamWriter(FileName, true);
-                    OutputFile.WriteLine(String.Format("{0} {1} {2} {3} {4} ", value6, value3, val1, val3, time));
+                    OutputFile.WriteLine(String.Format("{0} {1} {2} ", /*value6, value3*/ time, voltage, val2));
                     OutputFile.Close();
 
 
                     if (NPoints <= MaxPoints)
                     {
-                        if (val3 < YMIN) YMIN = val3;
-                        if (val3 > YMAX) YMAX = val3;
+                        if (val3 < YMIN) YMIN = val2;
+                        if (val3 > YMAX) YMAX = val2;
                         NPoints++;
                         Array.Resize(ref XX, NPoints);
                         Array.Resize(ref YY, NPoints);
-                        XX[NPoints - 1] = val1;
-                        YY[NPoints - 1] = val3;
+                        XX[NPoints - 1] = time;
+                        YY[NPoints - 1] = val2;
                         NPlot1.DataSource = YY;
                         NPlot1.AbscissaData = XX;
                         plotSurface2D1.Refresh();  // added new points
                     }
-                    //                if (time > plotSurface2D1.XAxis1.WorldMax) PlotRescale();
+                    if (time > plotSurface2D1.XAxis1.WorldMax) PlotRescale();
                 }
             }
             catch (System.FormatException)
@@ -698,15 +721,20 @@ namespace PolarimeterApp
                 }
                 if (OperationMode == SCAN_CELL)
                 {
-                    plotSurface2D1.XAxis1.WorldMin = -0.5;
-                    plotSurface2D1.XAxis1.WorldMax = 10.5;
-                    plotSurface2D1.YAxis1.WorldMin = -2.5;
-                    plotSurface2D1.YAxis1.WorldMax = 0.5;
+                    plotSurface2D1.XAxis1.WorldMin = 0;
+                    plotSurface2D1.XAxis1.WorldMax = time;
+                    plotSurface2D1.YAxis1.WorldMin = YMIN;
+                    plotSurface2D1.YAxis1.WorldMax = YMAX;
 
-                    XMin = -0.5;
-                    XMax = 10.5;
-                    YMin = -2.5;
-                    YMax = 0.5;
+                    plotSurface2D1.XAxis1.WorldMin -= plotSurface2D1.XAxis1.WorldLength * 0.1;
+                    plotSurface2D1.XAxis1.WorldMax += plotSurface2D1.XAxis1.WorldLength * 0.5;
+                    plotSurface2D1.YAxis1.WorldMin -= plotSurface2D1.YAxis1.WorldLength * 0.1;
+                    plotSurface2D1.YAxis1.WorldMax += plotSurface2D1.YAxis1.WorldLength * 0.1;
+
+                    plotSurface2D1.XAxis1.WorldMin -= plotSurface2D1.XAxis1.WorldLength * 0.1;
+                    plotSurface2D1.XAxis1.WorldMax += plotSurface2D1.XAxis1.WorldLength * 0.5;
+                    plotSurface2D1.YAxis1.WorldMin -= plotSurface2D1.YAxis1.WorldLength * 0.1;
+                    plotSurface2D1.YAxis1.WorldMax += plotSurface2D1.YAxis1.WorldLength * 0.1;
 
                     textBox2.Text = YMax.ToString("F0");
                     textBox3.Text = YMin.ToString("F0");
