@@ -144,7 +144,8 @@ void loop() {
   if (mode == MODE_MAIN) mode_main();
   if (mode == MODE_SCAN) mode_scan();
   if (mode == MODE_IDLE) mode_idle();
-  analogWrite(10, 511); // meander for modulator
+  //analogWrite(10, 511); // meander for modulator
+  analogWrite(6, 127);
 }
 
 void PWMSetup() {
