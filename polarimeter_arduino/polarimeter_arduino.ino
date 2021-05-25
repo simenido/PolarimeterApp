@@ -172,9 +172,9 @@ void loop() {
       Serial.print(serialString);
       micros_delay = (1000000 / mod_freq) / (2 * voltage_range);
       analogWrite(6, 127);
-      wdt_reset();
     }
     checkSerial();
+    wdt_reset();
     serialTimer = millis();
   }
   if (mode == MODE_MAIN) mode_main();
